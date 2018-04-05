@@ -1,0 +1,262 @@
+
+shiviKey2.asm          Assembled with CASM12Z  4/5/2018  5:55:20 PM  PAGE 1
+
+
+
+                            1  ;******Keypad Initialization*********
+ 000000                   2  PORTB: EQU $01             ;Init PORTB
+ 000000                   3  DDRB: EQU $03              ;Init PORTB init
+ 000000                   4  PUCR: EQU $000C            ;Pull up control 
+                               register
+                            5  
+ 000000                   6  PORTA: EQU 0
+ 000000                   7  DDRA: EQU 2
+                            8  
+                            9  ;Correct Pin
+ 000000                  10  PIN1: EQU %11101110          ;Key 1
+ 000000                  11  PIN2: EQU %11101101          ;Key 2
+ 000000                  12  PIN3: EQU %11101011          ;Key 3
+ 000000                  13  PIN4: EQU %11011110          ;Key 4
+                           14  
+                           15  ; WE GONNA ADD SUM MOR
+                           16  
+                           17  ;************************************
+                           18  
+                           19  ;*********Variables*****************************
+                               ********************************
+                           20  
+ 001000                  21             ORG $1000
+                           22           
+ 001000      01          23  INPUT1: DB 1
+ 001001      01          24  INPUT2: DB 1
+ 001002      01          25  INPUT3: DB 1
+ 001003      01          26  INPUT4: DB 1
+ 001004      01          27  PinCount: DB 1
+ 001005      01          28  InputCount: DB 1
+                           29  ;***********************************************
+                               *******************************
+                           30  
+                           31  
+                           32  
+                           33  KEYINIT:
+ 001006 [04] 4C030F      34             BSET DDRB,$0F                          
+                                 ;Init B0-3 to output, init B4-7 to input 
+                               (Check if correct DDRB)
+ 001009 [04] 4C0C02      35             BSET PUCR,$02                          
+                                 ;Enable PORTB as pullup
+ 00100C [04] 1610E2      36             JSR HRESET                             
+                                         ;Hard reset system
+ 00100F [03] 200C        37             BRA CHECK_SW                           
+                                 ;Go to main waiting state
+                           38           
+ 001011 [03] F61004      39  Reset:      LDAB PinCount                         
+                                 ;Check pin counter
+ 001014 [01] C10A        40              CMPB #!10                             
+                                         ;If its ten, time is up for pin entry
+ 001016 [03] 2605        41              BNE CHECK_SW
+ 001018 [04] 1610E2      42              JSR HReset                            
+                                         ;Hard reset
+ 00101B [03] 2000        43              BRA CHECK_SW
+                           44            
+                           45  CHECK_SW:
+                           46            ;BRCLR TFLG1,%00000010,Reset ;Check 
+                               if timer has reached max value
+
+
+shiviKey2.asm          Assembled with CASM12Z  4/5/2018  5:55:20 PM  PAGE 2
+
+
+
+                           47            
+ 00101D [01] C7          48              CLRB
+                           49            
+                           50            ;First Row
+ 00101E [01] 860E        51              LDAA #%00001110
+ 001020 [02] 5A01        52              STAA PORTB
+ 001022 [04] 4F01104A    53              BRCLR PORTB,%00010000,CHECK_SW1
+ 001026 [04] 4F012046    54              BRCLR PORTB,%00100000,CHECK_SW1
+ 00102A [04] 4F014042    55              BRCLR PORTB,%01000000,CHECK_SW1
+ 00102E [04] 4F01803E    56              BRCLR PORTB,%10000000,CHECK_SW1
+                           57            
+                           58            ;Second Row
+ 001032 [01] 860D        59              LDAA #%00001101
+ 001034 [02] 5A01        60              STAA PORTB
+ 001036 [04] 4F011036    61              BRCLR PORTB,%00010000,CHECK_SW1
+ 00103A [04] 4F012032    62              BRCLR PORTB,%00100000,CHECK_SW1
+ 00103E [04] 4F01402E    63              BRCLR PORTB,%01000000,CHECK_SW1
+ 001042 [04] 4F01802A    64              BRCLR PORTB,%10000000,CHECK_SW1
+                           65            
+                           66            ;Third Row
+ 001046 [01] 860B        67              LDAA #%00001011
+ 001048 [02] 5A01        68              STAA PORTB
+ 00104A [04] 4F011022    69              BRCLR PORTB,%00010000,CHECK_SW1
+ 00104E [04] 4F01201E    70              BRCLR PORTB,%00100000,CHECK_SW1
+ 001052 [04] 4F01401A    71              BRCLR PORTB,%01000000,CHECK_SW1
+ 001056 [04] 4F018016    72              BRCLR PORTB,%10000000,CHECK_SW1
+                           73            
+                           74            ;Fourth Row
+ 00105A [01] 8607        75              LDAA #%00000111
+ 00105C [02] 5A01        76              STAA PORTB
+ 00105E [04] 4F01100E    77              BRCLR PORTB,%00010000,CHECK_SW1
+ 001062 [04] 4F01200A    78              BRCLR PORTB,%00100000,CHECK_SW1
+ 001066 [04] 4F014006    79              BRCLR PORTB,%01000000,CHECK_SW1
+ 00106A [04] 4F018002    80              BRCLR PORTB,%10000000,CHECK_SW1
+                           81            
+ 00106E [03] 20AD        82              BRA CHECK_SW
+                           83            
+ 001070 [04] 1610D5      84  CHECK_SW1: JSR Delay
+ 001073 [04] 4E01F0A6    85                BRSET PORTB,$F0,CHECK_SW            
+                                 ;Check if not pressed
+ 001077 [03] 9601        86  CHECK_SW2: LDAA PORTB                             
+                                                 ;Load read value into acc A
+ 001079 [04] 4E01F0FC    87                BRSET PORTB,$F0,*                   
+                                         ;Check for switch release
+ 00107D [02] 36          88                PSHA                                
+                                                         ;Store read value 
+                               temporarily on stack
+ 00107E [04] 1610D5      89                JSR Delay                           
+                                                 ;delay for release
+ 001081 [03] 32          90                PULA                                
+                                                         ;Pull value off stack
+ 001082 [04] 4E01F0F1    91                BRSET PORTB,$F0,CHECK_SW2           
+                                 ;if false release
+ 001086 [03] F61005      92                LDAB InputCount
+ 001089 [01] 52          93                INCB                                
+                                                         ;Add one to input 
+                               counter
+ 00108A [03] 7B1005      94                STAB InputCount
+
+
+shiviKey2.asm          Assembled with CASM12Z  4/5/2018  5:55:20 PM  PAGE 3
+
+
+
+ 00108D [02] 36          95                PSHA                                
+                                                         ;Push input on stack
+ 00108E [01] C101        96                CMPB #$01                           
+                                                 ;Check if first input
+ 001090 [03] 2600        97                BNE NoTimer                         
+                                                 ;If not, nothing needs to be 
+                               done
+                           98  
+ 001092 [01] C104        99  NoTimer:   CMPB #$04                              
+                                                 ;Check if four inputs have 
+                               been entered
+ 001094 [03] 2704       100                BEQ Compare                         
+                                                 ;Branch to compare subroutine
+ 001096 [04] 1820FF83   101                LBRA CHECK_SW
+                          102  
+ 00109A [03] 32         103  Compare:   PULA                                   
+                                                         ;Get value from stack
+ 00109B [03] 91DE       104                CMPA PIN4                           
+                                                 ;Check if pin is correct
+ 00109D [03] 2707       105                BEQ Correct1                        
+                                                 ;Reset if not
+ 00109F [04] 1610E2     106                JSR HReset
+ 0010A2 [04] 1820FF77   107                LBRA CHECK_SW
+ 0010A6 [03] 32         108  Correct1:  PULA
+ 0010A7 [03] 91EB       109                CMPA PIN3
+ 0010A9 [03] 2707       110                BEQ Correct2
+ 0010AB [04] 1610E2     111                JSR HReset
+ 0010AE [04] 1820FF6B   112                LBRA CHECK_SW
+ 0010B2 [03] 32         113  Correct2:  PULA
+ 0010B3 [03] 91ED       114                CMPA PIN2
+ 0010B5 [03] 2707       115                BEQ Correct3
+ 0010B7 [04] 1610E2     116                JSR HReset
+ 0010BA [04] 1820FF5F   117                LBRA CHECK_SW
+ 0010BE [03] 32         118  Correct3:  PULA
+ 0010BF [03] 91EE       119                CMPA PIN1
+ 0010C1 [03] 2707       120                BEQ Correct4
+ 0010C3 [04] 1610E2     121                JSR HReset
+ 0010C6 [04] 1820FF53   122                LBRA CHECK_SW
+ 0010CA [03] 2000       123  Correct4:  BRA RFID                
+                          124  
+ 0010CC [02] 5A00       125  RFID:         STAA PORTA
+                          126  
+                          127  
+ 0010CE [02] CE03E8     128  Delay1MS:       ldx #!1000 ; This is a magic 
+                               number.  Modify to change delay
+                          129  
+                          130  
+ 0010D1 [01] 09         131  DelayLoop:      dex                        ; time.
+ 0010D2 [03] 26FD       132                  bne DelayLoop
+ 0010D4 [05] 3D         133                  rts
+                          134  
+                          135  
+ 0010D5 [04] 1610CE     136  Delay:          jsr Delay1MS
+ 0010D8 [03] EE82       137                  ldX 2,SP            ; The 
+                               decrement can't be done in place
+ 0010DA [01] 09         138                  dex                         ; DEC 
+                               2,X is a one byte operation
+ 0010DB [02] 6E82       139                  stX 2,SP            ; That's why 
+
+
+shiviKey2.asm          Assembled with CASM12Z  4/5/2018  5:55:20 PM  PAGE 4
+
+
+
+                               I use Y as a temp.
+ 0010DD [03] 2702       140                  beq DelayEnd                
+ 0010DF [03] 20F4       141                  bra Delay
+                          142                           
+ 0010E1 [05] 3D         143  DelayEnd:          rts
+                          144            
+                          145            
+ 0010E2 [01] C7         146  HReset:     CLRB
+ 0010E3 [03] 7B1004     147              STAB PinCount
+ 0010E6 [03] 7B1005     148              STAB InputCount
+ 0010E9 [02] CF4000     149              LDS #$4000
+ 0010EC [03] 7B1000     150              STAB INPUT1
+ 0010EF [03] 7B1001     151              STAB INPUT2
+ 0010F2 [03] 7B1002     152              STAB INPUT3
+ 0010F5 [03] 7B1003     153              STAB INPUT4
+ 0010F8 [04] 1610FC     154              JSR Flash                             
+                                         ;Flash lights
+ 0010FB [05] 3D         155              RTS
+                          156            
+                          157            
+ 0010FC [01] 86FF       158  Flash:      LDAA #%11111111
+ 0010FE [01] C605       159              LDAB #!5
+                          160   
+
+ Symbol Table 
+
+CHECK_SW         00101D
+CHECK_SW1        001070
+CHECK_SW2        001077
+COMPARE          00109A
+CORRECT1         0010A6
+CORRECT2         0010B2
+CORRECT3         0010BE
+CORRECT4         0010CA
+DDRA             000002
+DDRB             000003
+DELAY            0010D5
+DELAY1MS         0010CE
+DELAYEND         0010E1
+DELAYLOOP        0010D1
+FLASH            0010FC
+HRESET           0010E2
+INPUT1           001000
+INPUT2           001001
+INPUT3           001002
+INPUT4           001003
+INPUTCOUNT       001005
+KEYINIT          001006
+NOTIMER          001092
+PIN1             0000EE
+PIN2             0000ED
+PIN3             0000EB
+PIN4             0000DE
+PINCOUNT         001004
+PORTA            000000
+PORTB            000001
+PUCR             00000C
+RESET            001011
+
+
+shiviKey2.asm          Assembled with CASM12Z  4/5/2018  5:55:20 PM  PAGE 5
+
+
+
+RFID             0010CC

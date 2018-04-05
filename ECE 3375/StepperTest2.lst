@@ -1,0 +1,275 @@
+
+StepperTest2.asm       Assembled with CASM12Z  4/5/2018  5:24:45 PM  PAGE 1
+
+
+
+                            1  ; Used for Stepper Motor
+ 000000                   2  PORTA                      EQU $0000
+ 000000                   3  DDRA                       EQU $0002
+ 000000                   4  PORTB                      EQU $0001
+ 000000                   5  DDRB                       EQU $0003
+ 000000                   6  PORTM                      EQU $0250
+ 000000                   7  DDRM                       EQU $0252
+                            8  
+                            9  ; Used for Pot
+ 000000                  10  ADTCTL2              EQU   $122
+ 000000                  11  ADTCTL4      EQU   $124
+ 000000                  12  ADTCTL5              EQU   $125
+ 000000                  13  ADTSTAT0     EQU   $126
+ 000000                  14  ADT1DR1L     EQU   $133
+                           15  ; Ignore DDRA and PORTA cuz already def.
+                           16  
+                           17  
+ 000400                  18                  org $400
+ 000400 [02] CF4000      19                  lds #$4000
+                           20                           
+                           21                           
+ 000403 [01] 86C0        22  potInit:           LDAA #%11000000; Initialize 
+                               ADTCTL2                             
+ 000405 [03] 7A0122      23                             STAA ADTCTL2
+                           24                           ; You should have one 
+                               of these already, or something like it
+                           25                           ; A software delay is 
+                               fine.
+ 000408 [02] CE03E8      26                             ldx #!1000      ; 1 ms 
+                               delay set for A/D Converter.
+ 00040B [03] 7E1005      27                             stx dtmr        ; 
+                               Pushes our variable to duty cycle
+ 00040E [04] 1604B0      28                             JSR Delay1MS
+                           29                           
+ 000411 [01] 86E5        30                             LDAA #%11100101; 
+                               Initialize ADTCTL4
+                           31                           ;8 bit res, 16AtoD 
+                               clock periods, clock prescale factor
+ 000413 [03] 7A0124      32                             STAA ADTCTL4
+                           33                           
+ 000416 [04] 1604B0      34                             JSR Delay1MS
+                           35                           
+ 000419 [01] 86FF        36                             LDAA #$FF; Initialize 
+                               DDRA
+ 00041B [02] 5A02        37                             STAA DDRA
+                           38                           ; Initialize A/D
+                           39                           ; Initialize port A 
+                               for output
+                           40                           ; Initiate sample
+                           41                           
+                           42                           
+                           43                           
+                           44                           
+                           45                           
+                           46  stepperInit:     ; Init. the stepper motor 
+                               paramters                             
+                           47                                   
+                           48                           ; Port B to outputs    
+
+
+StepperTest2.asm       Assembled with CASM12Z  4/5/2018  5:24:45 PM  PAGE 2
+
+
+
+                                                        
+ 00041D [01] 86FF        49                             ldaa #$FF
+ 00041F [02] 5A03        50                             staa DDRB
+                           51                           ; Port M to input
+ 000421 [01] 87          52                             clra
+ 000422 [03] 7A0252      53                             staa DDRM
+ 000425 [02] CE06D6      54                             ldx #!1750      ; 
+                               Default value for duty cycle
+ 000428 [03] 7E1005      55                             stx dtmr        ; 
+                               Pushes our variable to duty cycle
+                           56                           
+                           57                           
+                           58  outer                    ; MODIFIED FOR A/D SHIT
+                           59   
+ 00042B [01] 8680        60                             LDAA #%10000000
+                           61                           ; port 0 config
+ 00042D [03] 7A0125      62                             STAA ADTCTL5
+                           63  
+ 000430 [05] 1F012680    64                             BRCLR ADTSTAT0,%1000000
+                               0,*      ; Spin on correct port 0 or 1 ($126) 
+                               bit 7 to detect conversion complete
+           FB 
+ 000435 [03] F60133      65                             LDAB ADT1DR1L; Read 
+                               eight bit A/D data from ATD1DR1L
+                           66                           ;STAA PORTA; Display 
+                               raw A/D data on the LED bank
+                           67                           
+                           68                           ; STAB dtmr
+                           69                           
+                           70  cmpADval:                
+ 000438 [01] 86FF        71                             LDAA #$FF;corresponds 
+                               to 11111111
+ 00043A [01] C1E3        72                             CMPB #!227
+ 00043C [03] 242E        73                             BHS setTmr
+                           74     
+ 00043E [01] 867F        75                             LDAA #$7F;corresponds 
+                               to 01111111
+ 000440 [01] C1C7        76                             CMPB #!199
+ 000442 [03] 2428        77                             BHS setTmr
+                           78     
+ 000444 [01] 863F        79                             LDAA #$3F;corresponds 
+                               to 00111111
+ 000446 [01] C1AB        80                             CMPB #!171
+ 000448 [03] 2422        81                             BHS setTmr
+                           82     
+ 00044A [01] 861F        83                             LDAA #$1F; corresponds 
+                               to 00011111
+ 00044C [01] C18F        84                             CMPB #!143
+ 00044E [03] 241C        85                             BHS setTmr
+                           86     
+ 000450 [01] 860F        87                             LDAA #$0F; corresponds 
+                               to 00001111
+ 000452 [01] C173        88                             CMPB #!115
+ 000454 [03] 2416        89                             BHS setTmr
+                           90     
+ 000456 [01] 8607        91                             LDAA #$07; corresponds 
+                               to 00000111
+ 000458 [01] C157        92                             CMPB #!87
+
+
+StepperTest2.asm       Assembled with CASM12Z  4/5/2018  5:24:45 PM  PAGE 3
+
+
+
+ 00045A [03] 2410        93                             BHS setTmr
+                           94     
+ 00045C [01] 8603        95                             LDAA #$03;corresponds 
+                               to 00000011
+ 00045E [01] C13B        96                             CMPB #!59
+ 000460 [03] 240A        97                             BHS setTmr
+                           98     
+ 000462 [01] 8601        99                             LDAA #$01;corresponds 
+                               to 00000001
+ 000464 [01] C11F       100                             CMPB #!31
+ 000466 [03] 2404       101                             BHS setTmr
+                          102     
+                          103     
+ 000468 [01] 8600       104                             LDAA #$0
+ 00046A [03] 2000       105                             BRA setTmr             
+                                                
+                          106                           
+                          107                           
+ 00046C [03] 7A1005     108  setTmr:                    STAA dtmr
+                          109                           
+                          110                           
+                          111  
+                          112                           
+                          113                           ; WE LEFT HERE
+                          114                           
+                          115                           
+                          116                           ; Regular stuff for 
+                               stepper
+                          117  
+ 00046F [01] C603       118                             ldab #3
+ 000471 [03] 7B1000     119                             stab index
+ 000474 [03] B60250     120                             ldaa PORTM
+ 000477 [01] 8401       121                             ANDA #1   ; check 
+                               direction bit
+ 000479 [03] 2705       122                             BEQ      CW
+ 00047B [02] CD04C4     123                             ldy #cwArray
+ 00047E [03] 2003       124                             BRA assignPtr
+                          125  
+                          126  
+ 000480 [02] CD04C8     127  CW:                                ldy #ccwArray
+                          128  
+                          129  
+ 000483 [03] 7D1001     130  assignPtr:         STY ptr                        
+                                
+ 000486 [03] F60250     131                             LDAB PORTM
+ 000489 [01] C402       132                             ANDB #2
+ 00048B [01] CB02       133                             ADDB #2
+ 00048D [01] 87         134                             clra
+ 00048E [03] 7C1003     135                             STD speed
+                          136  
+                          137  
+                          138  
+ 000491 [03] FD1001     139  inner                      ldy ptr
+ 000494 [03] F61000     140                             ldab index
+ 000497 [03] 9601       141                             LDAA PORTB
+ 000499 [01] 840F       142                             ANDA #$0F
+ 00049B [03] AAED       143                             ORaA B,Y
+ 00049D [02] 5A01       144                             staa PORTB
+
+
+StepperTest2.asm       Assembled with CASM12Z  4/5/2018  5:24:45 PM  PAGE 4
+
+
+
+ 00049F [03] FE1003     145                             ldx speed
+ 0004A2 [02] 34         146                             pshx
+ 0004A3 [04] 1604B7     147                             jsr Delay
+ 0004A6 [03] 30         148                             pulx
+ 0004A7 [04] 731000     149                             dec index
+ 0004AA [03] 2CE5       150                             bge inner
+ 0004AC [04] 1820FF7B   151                             lbra outer
+                          152         
+                          153  
+ 0004B0 [03] FE1005     154  Delay1MS:       ldx dtmr   ; This is a magic 
+                               number.  Modify to change delay
+                          155  
+                          156  
+ 0004B3 [01] 09         157  DelayLoop:      dex                        ; time.
+ 0004B4 [03] 26FD       158                  bne DelayLoop
+ 0004B6 [05] 3D         159                  rts
+                          160  
+                          161  
+ 0004B7 [04] 1604B0     162  Delay:          jsr Delay1MS
+ 0004BA [03] EE82       163                  ldX 2,SP            ; The 
+                               decrement can't be done in place
+ 0004BC [01] 09         164                  dex                         ; DEC 
+                               2,X is a one byte operation
+ 0004BD [02] 6E82       165                  stX 2,SP            ; That's why 
+                               I use Y as a temp.
+ 0004BF [03] 2702       166                  beq DelayEnd                
+ 0004C1 [03] 20F4       167                  bra Delay
+                          168  
+ 0004C3 [05] 3D         169  DelayEnd        rts                        
+                          170  
+                          171  
+ 0004C4      90601040   172  cwArray: db $90,$60,$10,$40
+ 0004C8      40106090   173  ccwArray: db $40,$10,$60,$90
+                          174  
+ 001000                 175              org $1000
+ 001000                 176  index:      ds 1
+ 001001                 177  ptr:        ds 2
+ 001003                 178  speed:      ds 2
+ 001005                 179  dtmr:       ds 2
+                          180   
+
+ Symbol Table 
+
+ADT1DR1L         000133
+ADTCTL2          000122
+ADTCTL4          000124
+ADTCTL5          000125
+ADTSTAT0         000126
+ASSIGNPTR        000483
+CCWARRAY         0004C8
+CMPADVAL         000438
+CW               000480
+CWARRAY          0004C4
+DDRA             000002
+DDRB             000003
+DDRM             000252
+DELAY            0004B7
+DELAY1MS         0004B0
+
+
+StepperTest2.asm       Assembled with CASM12Z  4/5/2018  5:24:45 PM  PAGE 5
+
+
+
+DELAYEND         0004C3
+DELAYLOOP        0004B3
+DTMR             001005
+INDEX            001000
+INNER            000491
+OUTER            00042B
+PORTA            000000
+PORTB            000001
+PORTM            000250
+POTINIT          000403
+PTR              001001
+SETTMR           00046C
+SPEED            001003
+STEPPERINIT      00041D

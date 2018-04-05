@@ -1,0 +1,173 @@
+
+frank.asm              Assembled with CASM12Z  4/5/2018  4:48:41 PM  PAGE 1
+
+
+
+ 000000                   1  PORTA EQU $0000
+ 000000                   2  DDRA EQU $0002
+ 000000                   3  PORTB EQU $0001
+ 000000                   4  DDRB EQU $0003
+ 000000                   5  PUCR EQU $0003
+ 000000                   6  PORTM EQU $0250
+ 000000                   7  DDRM EQU $0252
+                            8  
+ 000400                   9      ORG $400
+ 000400 [02] CF4000      10      LDS #$4000
+                           11  
+                           12  KEYINIT:
+ 000403 [01] 860F        13    LDAA #$0F
+ 000405 [02] 5A03        14    STAA DDRB
+                           15  
+ 000407 [01] 8602        16    LDAA #$02
+ 000409 [02] 5A03        17    STAA PUCR
+                           18  
+ 00040B [01] 87          19    CLRA
+ 00040C [03] 7A0252      20    STAA DDRM
+                           21  
+ 00040F [03] 2000        22    BRA CHECK_SW
+                           23  
+                           24  CHECK_SW:
+ 000411 [01] C7          25    CLRB
+                           26  
+                           27    ;First Row
+ 000412 [01] 860E        28    LDAA #%00001110
+ 000414 [02] 5A01        29    STAA PORTB
+ 000416 [04] 4F011048    30    BRCLR PORTB,%00010000,CHECK_SW1
+ 00041A [04] 4F012044    31    BRCLR PORTB,%00100000,CHECK_SW1
+ 00041E [04] 4F014040    32    BRCLR PORTB,%01000000,CHECK_SW1
+ 000422 [04] 4F01803C    33    BRCLR PORTB,%10000000,CHECK_SW1
+                           34  
+                           35    ;Second Row
+ 000426 [01] 860D        36    LDAA #%00001101
+ 000428 [02] 5A01        37    STAA PORTB
+ 00042A [04] 4F011034    38    BRCLR PORTB,%00010000,CHECK_SW1
+ 00042E [04] 4F012030    39    BRCLR PORTB,%00100000,CHECK_SW1
+ 000432 [04] 4F01402C    40    BRCLR PORTB,%01000000,CHECK_SW1
+ 000436 [04] 4F018028    41    BRCLR PORTB,%10000000,CHECK_SW1
+                           42  
+                           43    ;Third Row
+ 00043A [01] 860B        44    LDAA #%00001011
+ 00043C [02] 5A01        45    STAA PORTB
+ 00043E [04] 4F011020    46    BRCLR PORTB,%00010000,CHECK_SW1
+ 000442 [04] 4F01201C    47    BRCLR PORTB,%00100000,CHECK_SW1
+ 000446 [04] 4F014018    48    BRCLR PORTB,%01000000,CHECK_SW1
+ 00044A [04] 4F018014    49    BRCLR PORTB,%10000000,CHECK_SW1
+                           50  
+                           51    ;Fourth Row
+ 00044E [01] 8607        52    LDAA #%00000111
+ 000450 [02] 5A01        53    STAA PORTB
+ 000452 [04] 4F01100C    54    BRCLR PORTB,%00010000,CHECK_SW1
+ 000456 [04] 4F012008    55    BRCLR PORTB,%00100000,CHECK_SW1
+ 00045A [04] 4F014004    56    BRCLR PORTB,%01000000,CHECK_SW1
+ 00045E [04] 4F018000    57    BRCLR PORTB,%10000000,CHECK_SW1
+                           58  
+
+
+frank.asm              Assembled with CASM12Z  4/5/2018  4:48:41 PM  PAGE 2
+
+
+
+                           59  CHECK_SW1:
+ 000462 [04] 1604BE      60    JSR Delay
+ 000465 [03] 2011        61    BRA DRIVE_STEPPER
+                           62  CHECK_SW1_CONT:
+ 000467 [04] 4E01F0A6    63    BRSET PORTB,$F0,CHECK_SW
+                           64  CHECK_SW2:
+ 00046B [03] 9601        65    LDAA PORTB
+ 00046D [04] 4E01F0FC    66    BRSET PORTB,$F0,*
+ 000471 [04] 1604BE      67    JSR Delay
+ 000474 [04] 4E01F0F3    68    BRSET PORTB,$F0,CHECK_SW2
+                           69  
+                           70  DRIVE_STEPPER:
+ 000478 [01] C603        71  outer   LDAB #3
+ 00047A [03] 7B1000      72        STAB index
+ 00047D [03] B60250      73        LDAA PORTM
+ 000480 [01] 8401        74        ANDA #1
+ 000482 [03] 2705        75        BEQ CW
+ 000484 [02] CD04CB      76        LDY #cwArray
+ 000487 [03] 2003        77        BRA assignPtr
+ 000489 [02] CD04CF      78  CW:   LDY #ccwArray
+                           79  
+                           80  assignPtr:  
+ 00048C [03] 7D1001      81                     STY ptr
+ 00048F [03] F60250      82              LDAB PORTM
+ 000492 [01] C402        83              ANDB #2
+ 000494 [01] CB02        84              ADDB #2
+ 000496 [01] 87          85              CLRA
+ 000497 [03] 7C1003      86              STD speed
+                           87  
+ 00049A [03] FD1001      88  inner       LDY ptr
+ 00049D [03] F61000      89              LDAB index
+ 0004A0 [03] 9601        90              LDAA PORTB
+ 0004A2 [01] 840F        91              ANDA #$0F
+ 0004A4 [03] AAED        92              ORAA B,Y
+ 0004A6 [02] 5A01        93              STAA PORTB
+ 0004A8 [03] FE1003      94              LDX speed
+ 0004AB [02] 34          95              PSHX
+ 0004AC [04] 1604BE      96              JSR Delay
+ 0004AF [03] 30          97              PULX
+ 0004B0 [04] 731000      98              DEC index
+ 0004B3 [03] 2CE5        99              BGE inner
+ 0004B5 [03] 20B0       100              BRA CHECK_SW1_CONT
+                          101  
+                          102  
+ 0004B7 [02] CE06D6     103  Delay1MS:       LDX #!1750 ; This is a magic 
+                               number.  Modify to change delay
+ 0004BA [01] 09         104  DelayLoop:      DEX                        ; time.
+ 0004BB [03] 26FD       105                  BNE DelayLoop
+ 0004BD [05] 3D         106                  RTS
+                          107  
+ 0004BE [04] 1604B7     108  Delay:          JSR Delay1MS
+ 0004C1 [03] EE82       109                  LDX 2,SP            ; The 
+                               decrement can't be done in place
+ 0004C3 [01] 09         110                  DEX                         ; DEC 
+                               2,X is a one byte operation
+ 0004C4 [02] 6E82       111                  STX 2,SP            ; That's why 
+                               I use Y as a temp.
+ 0004C6 [03] 2702       112                  BEQ DelayEnd
+
+
+frank.asm              Assembled with CASM12Z  4/5/2018  4:48:41 PM  PAGE 3
+
+
+
+ 0004C8 [03] 20F4       113                  BRA Delay
+ 0004CA [05] 3D         114  DelayEnd        RTS
+                          115  
+ 0004CB      90601040   116  cwArray: db $90,$60,$10,$40
+ 0004CF      40106090   117  ccwArray: db $40,$10,$60,$90
+                          118  
+ 001000                 119      org $1000
+ 001000                 120  index:      ds 1
+ 001001                 121  ptr:        ds 2
+ 001003                 122  speed:      ds 2
+                          123   
+
+ Symbol Table 
+
+ASSIGNPTR        00048C
+CCWARRAY         0004CF
+CHECK_SW         000411
+CHECK_SW1        000462
+CHECK_SW1_CONT   000467
+CHECK_SW2        00046B
+CW               000489
+CWARRAY          0004CB
+DDRA             000002
+DDRB             000003
+DDRM             000252
+DELAY            0004BE
+DELAY1MS         0004B7
+DELAYEND         0004CA
+DELAYLOOP        0004BA
+DRIVE_STEPPER    000478
+INDEX            001000
+INNER            00049A
+KEYINIT          000403
+OUTER            000478
+PORTA            000000
+PORTB            000001
+PORTM            000250
+PTR              001001
+PUCR             000003
+SPEED            001003

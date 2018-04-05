@@ -1,0 +1,10 @@
+
+CASM12 - Command line ASseMbler - Version 3.18 - SLD
+P&E Microcomputer Systems, Inc.
+
+
+			  CMPA ,X+
+H:\ECE 3375\shiviKey.asm(179): error 1 Parameter : invalid, too large, missing, or out of range
+
+Total lines assembled : 179
+

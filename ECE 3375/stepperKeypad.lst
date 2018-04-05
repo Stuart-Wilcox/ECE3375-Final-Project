@@ -1,0 +1,319 @@
+
+stepperKeypad.asm      Assembled with CASM12Z  4/5/2018  7:02:15 PM  PAGE 1
+
+
+
+                            1  ; Used for Stepper Motor
+ 000000                   2  PORTA                      EQU $0000
+ 000000                   3  DDRA                       EQU $0002
+ 000000                   4  PORTB                      EQU $0001
+ 000000                   5  DDRB                       EQU $0003
+ 000000                   6  PORTM                      EQU $0250
+ 000000                   7  DDRM                       EQU $0252
+                            8  
+                            9  
+ 000400                  10                  org $400
+ 000400 [02] CF4000      11                  lds #$4000
+                           12                                                  
+                                
+                           13                           
+                           14                           
+                           15  stepperInit:     ; Init. the stepper motor 
+                               paramters                             
+                           16                                   
+                           17                           ; Port B to outputs    
+                                                        
+ 000403 [01] 86FF        18                             ldaa #$FF
+ 000405 [02] 5A03        19                             staa DDRB
+                           20                           ; Port M to input
+ 000407 [01] 87          21                             clra
+ 000408 [03] 7A0252      22                             staa DDRM
+ 00040B [02] CE06D6      23                             ldx #!1750      ; 
+                               Default value for duty cycle
+ 00040E [03] 7E1005      24                             stx dtmr        ; 
+                               Pushes our variable to duty cycle
+                           25  
+ 000411 [01] 860F        26  keypadInit:        ldaa #$0F
+ 000413 [02] 5A03        27                             staa $03 ; Set port B 
+                               for in[7..4], out[3..0]
+ 000415 [01] 86FF        28                             ldaa #$FF 
+ 000417 [02] 5A02        29                             staa $02  ; Set port A 
+                               for output only
+                           30                           
+                           31                           
+                           32  outer                    
+ 000419 [01] 8600        33                             LDAA #$0
+ 00041B [03] 7A1005      34                             STAA dtmr
+                           35                           
+                           36                           
+                           37                           ; Regular stuff for 
+                               stepper
+                           38  
+ 00041E [01] C603        39                             ldab #3
+ 000420 [03] 7B1000      40                             stab index
+ 000423 [03] B60250      41                             ldaa PORTM
+ 000426 [01] 8401        42                             ANDA #1   ; check 
+                               direction bit
+ 000428 [03] 2705        43                             BEQ      CW
+ 00042A [02] CD0473      44                             ldy #cwArray
+ 00042D [03] 2003        45                             BRA assignPtr
+                           46                           
+                           47  
+ 00042F [02] CD0477      48  CW:                                ldy #ccwArray
+                           49  
+
+
+stepperKeypad.asm      Assembled with CASM12Z  4/5/2018  7:02:15 PM  PAGE 2
+
+
+
+                           50  
+ 000432 [03] 7D1001      51  assignPtr:         STY ptr                        
+                                
+ 000435 [03] F60250      52                             LDAB PORTM
+ 000438 [01] C402        53                             ANDB #2
+ 00043A [01] CB02        54                             ADDB #2
+ 00043C [01] 87          55                             clra
+ 00043D [03] 7C1003      56                             STD speed
+                           57  
+                           58  
+ 000440 [03] FD1001      59  inner                      ldy ptr
+ 000443 [03] F61000      60                             ldab index
+ 000446 [03] 9601        61                             LDAA PORTB
+ 000448 [01] 840F        62                             ANDA #$0F
+ 00044A [03] AAED        63                             ORaA B,Y
+ 00044C [02] 5A01        64                             staa PORTB
+ 00044E [03] FE1003      65                             ldx speed
+ 000451 [02] 34          66                             pshx
+ 000452 [04] 160466      67                             jsr StepperDelay
+ 000455 [03] 30          68                             pulx
+ 000456 [04] 731000      69                             dec index
+ 000459 [03] 2CE5        70                             bge inner
+ 00045B [04] 18200BA8    71                             lbra ReScan
+                           72         
+                           73  
+ 00045F [03] FE1005      74  StepperDelay1MS:       ldx dtmr    ; This is a 
+                               magic number.  Modify to change delay
+                           75  
+                           76  
+ 000462 [01] 09          77  StepperDelayLoop:      dex                 ; time.
+ 000463 [03] 26FD        78                  bne StepperDelayLoop
+ 000465 [05] 3D          79                  rts
+                           80  
+                           81  
+ 000466 [04] 16045F      82  StepperDelay:          jsr StepperDelay1MS
+ 000469 [03] EE82        83                  ldX 2,SP            ; The 
+                               decrement can't be done in place
+ 00046B [01] 09          84                  dex                         ; DEC 
+                               2,X is a one byte operation
+ 00046C [02] 6E82        85                  stX 2,SP            ; That's why 
+                               I use Y as a temp.
+ 00046E [03] 2702        86                  beq StepperDelayEnd               
+                                
+ 000470 [03] 20F4        87                  bra StepperDelay
+                           88  
+ 000472 [05] 3D          89  StepperDelayEnd        rts                        
+                           90  
+                           91  
+ 000473      90601040    92  cwArray: db $90,$60,$10,$40
+ 000477      40106090    93  ccwArray: db $40,$10,$60,$90
+                           94  
+ 001000                  95              org $1000
+ 001000                  96  index:      ds 1
+ 001001                  97  ptr:        ds 2
+ 001003                  98  speed:      ds 2
+ 001005                  99  dtmr:       ds 2
+                          100  
+                          101  
+
+
+stepperKeypad.asm      Assembled with CASM12Z  4/5/2018  7:02:15 PM  PAGE 3
+
+
+
+                          102  ;*************************KEYPAD************
+                          103  
+                          104                           
+ 001007 [02] 1B9F       105  ReScan:                    des      ; Create room 
+                               on the stack for the return value
+ 001009 [04] 16102A     106                             jsr ScanOnce  ; Do one 
+                               scan of the keypad
+ 00100C [03] 32         107                             pula              ; 
+                               Get the return value
+ 00100D [01] 81FF       108                             cmpa #$FF         ; 
+                               Invalid return value
+ 00100F [03] 27F6       109                             beq ReScan
+ 001011 [02] 36         110                             psha              ; 
+                               Store the current return value
+ 001012 [02] CD0032     111                             ldy #!50          ; 50 
+                               ms debounce delay
+ 001015 [02] 35         112                             pshy
+ 001016 [04] 1610B1     113                             jsr Delay
+ 001019 [02] 1B81       114                             ins                    
+                                  ; Only clean up one byte, since we need 
+                               RValue
+ 00101B [04] 16102A     115                             jsr ScanOnce  ; Do 
+                               another scan
+ 00101E [03] 32         116                             pula              ; 
+                               Get the return value
+ 00101F [03] 33         117                             pulb              ; 
+                               Get the previous return value
+ 001020 [02] 1817       118                             cba                    
+                                  ; Are they the same?
+ 001022 [03] 26E3       119                             bne ReScan        ; If 
+                               not, do nothing
+ 001024 [02] 5A00       120                             staa $0           ; 
+                               Else, write to the LED bank.
+ 001026 [04] 1820F3EF   121                             lbra outer
+                          122                           
+                          123                                                  
+                                                        
+ 00102A [01] C7         124  ScanOnce:       clrb
+ 00102B [02] CE10A2     125  top:            ldx #OutputMasks   ; This lookup 
+                               table contains the
+ 00102E [03] A6E5       126                  ldaa b,x                   ; 
+                               single-zero outputs for the
+ 001030 [02] 5A01       127                  staa $1                           
+                                ; columns
+ 001032 [04] 1610AA     128                             jsr Delay1MS           
+                                ; Wait so the output can settle
+ 001035 [03] 9601       129                  ldaa $1                           
+                                ; Read the input
+ 001037 [01] 44         130                  lsra                              
+                                ; Shift right four times.  The rows
+ 001038 [01] 44         131                  lsra                              
+                                ; are in the high order bits
+ 001039 [01] 44         132                  lsra
+ 00103A [01] 44         133                  lsra
+ 00103B [01] 840F       134                  anda #$0F                  ; 
+                               Input $F means no key pressed
+ 00103D [01] 810F       135                  cmpa #$0F                  ; 
+                               Input anything else means keypressed
+
+
+stepperKeypad.asm      Assembled with CASM12Z  4/5/2018  7:02:15 PM  PAGE 4
+
+
+
+ 00103F [03] 270C       136                  beq next_test              ; On 
+                               $F, move to the next column
+ 001041 [02] CE109A     137                  ldx #ColAddr               ; On 
+                               not-$F, load the current column
+ 001044 [03] EDE5       138                  ldy b,x                           
+                                ; look-up table
+ 001046 [03] A6EC       139                  ldaa a,y; At this point, A 
+                               contains the solution
+ 001048 [01] B775       140                             tsx
+ 00104A [02] 6A02       141                  staa 2,x                   ; 
+                               Write the answer to the stack
+ 00104C [05] 3D         142                             rts                    
+                                                ; and return
+ 00104D [01] 52         143  next_test:      incb                              
+                                ; We need to increment twice so B will 
+ 00104E [01] 52         144                  incb                              
+                                ; properly index the row and column tables
+ 00104F [01] C108       145                  cmpb #8                           
+                                ; When B reaches 8, we're done
+ 001051 [03] 2DD8       146                  blt top
+ 001053 [01] 86FF       147                  ldaa #$FF                  ; If B 
+                               reached 8, return $FF to indicate
+ 001055 [01] B775       148                             tsx                    
+                                                ; no key pressed
+ 001057 [02] 6A02       149                             staa 2,x
+ 001059 [05] 3D         150                             rts                
+                          151  
+                          152  ; OK.  Valid values are single zeros, so that's 
+                               7, B, D, E.  Others fault                
+ 00105A      FFFFFFFF   153  ColOne:         db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               A,$FF,$FF,$FF,$07,$FF,$04,$01,$FF
+           FFFFFF0A 
+           FFFFFF07 
+           FF0401FF 
+ 00106A      FFFFFFFF   154  ColTwo:         db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               0,$FF,$FF,$FF,$08,$FF,$05,$02,$FF
+           FFFFFF00 
+           FFFFFF08 
+           FF0502FF 
+ 00107A      FFFFFFFF   155  ColThree:       db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               B,$FF,$FF,$FF,$09,$FF,$06,$03,$FF
+           FFFFFF0B 
+           FFFFFF09 
+           FF0603FF 
+ 00108A      FFFFFFFF   156  ColFour:        db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               C,$FF,$FF,$FF,$0D,$FF,$0E,$0F,$FF
+           FFFFFF0C 
+           FFFFFF0D 
+           FF0E0FFF 
+                          157  
+ 00109A      105A106A   158  ColAddr:        dw  ColOne,ColTwo,ColThree,ColFour
+           107A108A 
+                          159  
+                          160  ; Output mask must be padded, so we can step by 
+                               2s through the ColAddr array
+ 0010A2      0EFF0DFF   161  OutputMasks:    db $E,$FF,$D,$Ff,$B,$FF,$7,$FF
+           0BFF07FF 
+                          162  
+
+
+stepperKeypad.asm      Assembled with CASM12Z  4/5/2018  7:02:15 PM  PAGE 5
+
+
+
+ 0010AA [02] CE00C8     163  Delay1MS:       ldx #!200  ; This is a magic 
+                               number.  Modify to change delay
+ 0010AD [01] 09         164  DelayLoop:      dex                        ; time.
+ 0010AE [03] 26FD       165                  bne DelayLoop
+ 0010B0 [05] 3D         166                  rts
+                          167  
+ 0010B1 [01] B775       168  Delay:          tsx
+ 0010B3 [03] ED02       169                  ldy 2,x             ; The 
+                               decrement can't be done in place.
+ 0010B5 [01] 03         170                  dey                         ; DEC 
+                               2,X is a one byte operation
+ 0010B6 [02] 6D02       171                  sty 2,x             ; That's why 
+                               I use Y as a temp.
+ 0010B8 [03] 2705       172                  beq DelayEnd
+ 0010BA [04] 1610AA     173                  jsr Delay1MS
+ 0010BD [03] 20F2       174                  bra Delay
+ 0010BF [05] 3D         175  DelayEnd        rts                        
+                          176  
+                          177   
+
+ Symbol Table 
+
+ASSIGNPTR        000432
+CCWARRAY         000477
+COLADDR          00109A
+COLFOUR          00108A
+COLONE           00105A
+COLTHREE         00107A
+COLTWO           00106A
+CW               00042F
+CWARRAY          000473
+DDRA             000002
+DDRB             000003
+DDRM             000252
+DELAY            0010B1
+DELAY1MS         0010AA
+DELAYEND         0010BF
+DELAYLOOP        0010AD
+DTMR             001005
+INDEX            001000
+INNER            000440
+KEYPADINIT       000411
+NEXT_TEST        00104D
+OUTER            000419
+OUTPUTMASKS      0010A2
+PORTA            000000
+PORTB            000001
+PORTM            000250
+PTR              001001
+RESCAN           001007
+SCANONCE         00102A
+SPEED            001003
+STEPPERDELAY     000466
+STEPPERDELAY1MS  00045F
+STEPPERDELAYEND  000472
+STEPPERDELAYLOOP 000462
+STEPPERINIT      000403
+TOP              00102B

@@ -1,0 +1,290 @@
+
+keypadtest.asm         Assembled with CASM12Z  4/5/2018  6:49:30 PM  PAGE 1
+
+
+
+ 000000                   1  PORTA                      EQU $0000
+ 000000                   2  DDRA                       EQU $0002
+                            3  
+ 000000                   4  PORTB                      EQU $0001
+ 000000                   5  DDRB                       EQU $0003
+                            6  
+ 000000                   7  PORTM                      EQU $0250
+ 000000                   8  DDRM                       EQU $0252
+                            9                           
+ 000400                  10                             org $400
+ 000400 [02] CF4000      11                             lds #$4000
+                           12                           
+                           13                           ; Motor stuff
+                           14                           ; Port B to outputs    
+                                                        
+ 000403 [01] 86FF        15                             ldaa #$FF
+ 000405 [02] 5A03        16                             staa DDRB
+                           17                           ; Port M to input
+ 000407 [01] 87          18                             clra
+ 000408 [03] 7A0252      19                             staa DDRM
+                           20                           
+ 00040B [01] 860F        21                             ldaa #$0F
+ 00040D [02] 5A03        22                             staa $03 ; Set port B 
+                               for in[7..4], out[3..0]
+ 00040F [01] 86FF        23                             ldaa #$FF 
+ 000411 [02] 5A02        24                             staa $02  ; Set port A 
+                               for output only
+                           25                           
+                           26                           
+                           27                           
+ 000413 [02] 1B9F        28  ReScan:                    des      ; Create room 
+                               on the stack for the return value
+ 000415 [04] 160438      29                             jsr ScanOnce  ; Do one 
+                               scan of the keypad
+ 000418 [03] 32          30                             pula              ; 
+                               Get the return value
+ 000419 [01] 81FF        31                             cmpa #$FF         ; 
+                               Invalid return value
+ 00041B [03] 27F6        32                             beq ReScan
+                           33                           
+ 00041D [02] 36          34                             psha              ; 
+                               Store the current return value
+ 00041E [02] CD0032      35                             ldy #!50          ; 50 
+                               ms debounce delay
+ 000421 [02] 35          36                             pshy
+ 000422 [04] 1604FD      37                             jsr Delay
+ 000425 [02] 1B81        38                             ins                    
+                                  ; Only clean up one byte, since we need 
+                               RValue
+ 000427 [04] 160438      39                             jsr ScanOnce  ; Do 
+                               another scan
+ 00042A [03] 32          40                             pula              ; 
+                               Get the return value
+ 00042B [03] 33          41                             pulb              ; 
+                               Get the previous return value
+ 00042C [02] 1817        42                             cba                    
+                                  ; Are they the same?
+ 00042E [03] 26E3        43                             bne ReScan        ; If 
+
+
+keypadtest.asm         Assembled with CASM12Z  4/5/2018  6:49:30 PM  PAGE 2
+
+
+
+                               not, do nothing
+ 000430 [02] 5A00        44                             staa $0           ; 
+                               Else, write to the LED bank.
+ 000432 [03] 7A1005      45                             staa dtmr         ; 
+                               Load value from keyboard into timer var
+ 000435 [04] 160468      46                             jsr outer         ; 
+                               run motor
+                           47                           
+                           48                                                  
+                                                        
+ 000438 [01] C7          49  ScanOnce:       clrb
+ 000439 [02] CE04EE      50  top:            ldx #OutputMasks   ; This lookup 
+                               table contains the
+ 00043C [03] A6E5        51                  ldaa b,x                   ; 
+                               single-zero outputs for the
+ 00043E [02] 5A01        52                  staa $1                           
+                                ; columns
+ 000440 [04] 1604F6      53                             jsr Delay1MS           
+                                ; Wait so the output can settle
+ 000443 [03] 9601        54                  ldaa $1                           
+                                ; Read the input
+ 000445 [01] 44          55                  lsra                              
+                                ; Shift right four times.  The rows
+ 000446 [01] 44          56                  lsra                              
+                                ; are in the high order bits
+ 000447 [01] 44          57                  lsra
+ 000448 [01] 44          58                  lsra
+ 000449 [01] 840F        59                  anda #$0F                  ; 
+                               Input $F means no key pressed
+ 00044B [01] 810F        60                  cmpa #$0F                  ; 
+                               Input anything else means keypressed
+ 00044D [03] 270C        61                  beq next_test              ; On 
+                               $F, move to the next column
+ 00044F [02] CE04E6      62                  ldx #ColAddr               ; On 
+                               not-$F, load the current column
+ 000452 [03] EDE5        63                  ldy b,x                           
+                                ; look-up table
+ 000454 [03] A6EC        64                  ldaa a,y; At this point, A 
+                               contains the solution
+ 000456 [01] B775        65                             tsx
+ 000458 [02] 6A02        66                  staa 2,x                   ; 
+                               Write the answer to the stack
+ 00045A [05] 3D          67                             rts                    
+                                                ; and return
+ 00045B [01] 52          68  next_test:      incb                              
+                                ; We need to increment twice so B will 
+ 00045C [01] 52          69                  incb                              
+                                ; properly index the row and column tables
+ 00045D [01] C108        70                  cmpb #8                           
+                                ; When B reaches 8, we're done
+ 00045F [03] 2DD8        71                  blt top
+ 000461 [01] 86FF        72                  ldaa #$FF                  ; If B 
+                               reached 8, return $FF to indicate
+ 000463 [01] B775        73                             tsx                    
+                                                ; no key pressed
+ 000465 [02] 6A02        74                             staa 2,x
+ 000467 [05] 3D          75                             rts           
+                           76                           
+
+
+keypadtest.asm         Assembled with CASM12Z  4/5/2018  6:49:30 PM  PAGE 3
+
+
+
+ 000468 [01] C603        77  outer                      ldab #3
+ 00046A [03] 7B1000      78                             stab index
+ 00046D [03] B60250      79                             ldaa PORTM
+ 000470 [01] 8401        80                             ANDA #1   ; check 
+                               direction bit
+ 000472 [03] 2705        81                             BEQ      CW
+ 000474 [02] CD0522      82                             ldy #cwArray
+ 000477 [03] 2003        83                             BRA assignPtr
+ 000479 [02] CD0526      84  CW:                                ldy #ccwArray
+ 00047C [03] 7D1001      85  assignPtr:         STY ptr                        
+                                
+ 00047F [03] F60250      86                             LDAB PORTM
+ 000482 [01] C402        87                             ANDB #2
+ 000484 [01] CB02        88                             ADDB #2
+ 000486 [01] 87          89                             clra
+ 000487 [03] 7C1003      90                             STD speed
+                           91  
+ 00048A [03] FD1001      92  inner                      ldy ptr
+ 00048D [03] F61000      93                             ldab index
+ 000490 [03] 9601        94                             LDAA PORTB
+ 000492 [01] 840F        95                             ANDA #$0F
+ 000494 [03] AAED        96                             ORaA B,Y
+ 000496 [02] 5A01        97                             staa PORTB
+ 000498 [03] FE1003      98                             ldx speed
+ 00049B [02] 34          99                             pshx
+ 00049C [04] 160513     100                             jsr StepperDelay
+ 00049F [03] 30         101                             pulx
+ 0004A0 [04] 731000     102                             dec index
+ 0004A3 [03] 2CE5       103                             bge inner
+ 0004A5 [05] 3D         104                             rts     ; read value 
+                               from keyboard again
+                          105  
+                          106  ; OK.  Valid values are single zeros, so that's 
+                               7, B, D, E.  Others fault                
+ 0004A6      FFFFFFFF   107  ColOne:         db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               A,$FF,$FF,$FF,$07,$FF,$04,$01,$FF
+           FFFFFF0A 
+           FFFFFF07 
+           FF0401FF 
+ 0004B6      FFFFFFFF   108  ColTwo:         db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               0,$FF,$FF,$FF,$08,$FF,$05,$02,$FF
+           FFFFFF00 
+           FFFFFF08 
+           FF0502FF 
+ 0004C6      FFFFFFFF   109  ColThree:       db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               B,$FF,$FF,$FF,$09,$FF,$06,$03,$FF
+           FFFFFF0B 
+           FFFFFF09 
+           FF0603FF 
+ 0004D6      FFFFFFFF   110  ColFour:        db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$0
+                               C,$FF,$FF,$FF,$0D,$FF,$0E,$0F,$FF
+           FFFFFF0C 
+           FFFFFF0D 
+           FF0E0FFF 
+                          111  
+ 0004E6      04A604B6   112  ColAddr:        dw  ColOne,ColTwo,ColThree,ColFour
+           04C604D6 
+                          113  
+
+
+keypadtest.asm         Assembled with CASM12Z  4/5/2018  6:49:30 PM  PAGE 4
+
+
+
+                          114  ; Output mask must be padded, so we can step by 
+                               2s through the ColAddr array
+ 0004EE      0EFF0DFF   115  OutputMasks:    db $E,$FF,$D,$Ff,$B,$FF,$7,$FF
+           0BFF07FF 
+                          116  
+ 0004F6 [02] CE00C8     117  Delay1MS:       ldx #!200  ; This is a magic 
+                               number.  Modify to change delay
+ 0004F9 [01] 09         118  DelayLoop:      dex                        ; time.
+ 0004FA [03] 26FD       119                  bne DelayLoop
+ 0004FC [05] 3D         120                  rts
+                          121  
+ 0004FD [01] B775       122  Delay:          tsx
+ 0004FF [03] ED02       123                  ldy 2,x             ; The 
+                               decrement can't be done in place.
+ 000501 [01] 03         124                  dey                         ; DEC 
+                               2,X is a one byte operation
+ 000502 [02] 6D02       125                  sty 2,x             ; That's why 
+                               I use Y as a temp.
+ 000504 [03] 2705       126                  beq DelayEnd
+ 000506 [04] 1604F6     127                  jsr Delay1MS
+ 000509 [03] 20F2       128                  bra Delay
+ 00050B [05] 3D         129  DelayEnd        rts           
+                          130  
+ 00050C [03] FE1005     131  StepperDelay1MS:       ldx dtmr    ; This is a 
+                               magic number.  Modify to change delay
+ 00050F [01] 09         132  StepperDelayLoop:      dex                 ; time.
+ 000510 [03] 26FD       133                  bne StepperDelayLoop
+ 000512 [05] 3D         134                  rts
+                          135  
+ 000513 [01] B775       136  StepperDelay:          tsx
+ 000515 [03] ED02       137                  ldy 2,x             ; The 
+                               decrement can't be done in place.
+ 000517 [01] 03         138                  dey                         ; DEC 
+                               2,X is a one byte operation
+ 000518 [02] 6D02       139                  sty 2,x             ; That's why 
+                               I use Y as a temp.
+ 00051A [03] 2705       140                  beq StepperDelayEnd
+ 00051C [04] 16050C     141                  jsr StepperDelay1MS
+ 00051F [03] 20F2       142                  bra StepperDelay
+ 000521 [05] 3D         143  StepperDelayEnd        rts                        
+                          144  
+ 000522      90601040   145  cwArray: db $90,$60,$10,$40
+ 000526      40106090   146  ccwArray: db $40,$10,$60,$90
+                          147  
+ 001000                 148              org $1000
+ 001000                 149  index:      ds 1
+ 001001                 150  ptr:        ds 2
+ 001003                 151  speed:      ds 2
+ 001005                 152  dtmr:       ds 2
+                          153   
+
+ Symbol Table 
+
+ASSIGNPTR        00047C
+CCWARRAY         000526
+COLADDR          0004E6
+COLFOUR          0004D6
+COLONE           0004A6
+
+
+keypadtest.asm         Assembled with CASM12Z  4/5/2018  6:49:30 PM  PAGE 5
+
+
+
+COLTHREE         0004C6
+COLTWO           0004B6
+CW               000479
+CWARRAY          000522
+DDRA             000002
+DDRB             000003
+DDRM             000252
+DELAY            0004FD
+DELAY1MS         0004F6
+DELAYEND         00050B
+DELAYLOOP        0004F9
+DTMR             001005
+INDEX            001000
+INNER            00048A
+NEXT_TEST        00045B
+OUTER            000468
+OUTPUTMASKS      0004EE
+PORTA            000000
+PORTB            000001
+PORTM            000250
+PTR              001001
+RESCAN           000413
+SCANONCE         000438
+SPEED            001003
+STEPPERDELAY     000513
+STEPPERDELAY1MS  00050C
+STEPPERDELAYEND  000521
+STEPPERDELAYLOOP 00050F
+TOP              000439

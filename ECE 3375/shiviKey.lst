@@ -1,0 +1,285 @@
+
+shiviKey.asm           Assembled with CASM12Z  4/5/2018  5:46:06 PM  PAGE 1
+
+
+
+                            1  ;******Keypad Initialization*********
+ 000000                   2  PORTB: EQU $01             ;Init PORTB
+ 000000                   3  DDRB: EQU $03              ;Init PORTB init
+ 000000                   4  PUCR: EQU $000C            ;Pull up control 
+                               register
+                            5  
+ 000000                   6  PORTA: EQU 0
+ 000000                   7  DDRA: EQU 2
+                            8  
+                            9  ;Correct Pin
+ 000000                  10  PIN1: EQU %11101110          ;Key 1
+ 000000                  11  PIN2: EQU %11101101          ;Key 2
+ 000000                  12  PIN3: EQU %11101011          ;Key 3
+ 000000                  13  PIN4: EQU %11011110          ;Key 4
+                           14  ;*******Timer Initialization**************
+                           15  ;Register offset from $40
+ 000000                  16  TSCR1      EQU $46                                
+                                                  ;Timer init
+ 000000                  17  TSCR2      EQU $4D                                
+                                                  ;Scale factor
+ 000000                  18  TIOS       EQU $40                                
+                                                  ;Compare set
+ 000000                  19  TCTL1      EQU $48                                
+                                                  ;Counter
+ 000000                  20  TCTL2      EQU $49
+ 000000                  21  TFLG1      EQU $4E                                
+                                                  ;Event
+ 000000                  22  TIE        EQU $4C
+ 000000                  23  TSCNT      EQU $44
+ 000000                  24  TC0 EQU $50                                       
+                                                          ;Delay Timer
+ 000000                  25  TC1        EQU $52                                
+                                                          ;Pin timer
+ 000000                  26  TC4        EQU $58                                
+                                                          
+ 000000                  27  PORTM      EQU $0250
+ 000000                  28  DDRM       EQU $0252
+ 000000                  29  DelayTime EQU !10000                              
+                                          ;Delay time = 10ms
+ 000000                  30  PinTime EQU !65536
+                           31  ;********Serial Initialization******************
+                               ********************************
+ 000000                  32  BPS9600: EQU    $34             ; 9600 baud, for 
+                               SCI baud rate reg. low byte
+                           33  
+ 000000                  34  RegBase: EQU       0
+ 000000                  35  SCI0BDH: EQU    RegBase+$C8        ; SCI 0 baud 
+                               rate register hi byte
+ 000000                  36  SCI0BDL: EQU    RegBase+$C9        ; SCI 0 baud 
+                               rate register low byte
+ 000000                  37  SC0CR1:  EQU    RegBase+$CA        ; SCI 0 
+                               control register 1
+ 000000                  38  SCI0CR2: EQU    RegBase+$CB        ; SCI 0 
+                               control register 2
+ 000000                  39  SCI0SR1: EQU    RegBase+$CC        ; SCI 0 status 
+                               register 1
+ 000000                  40  SC0SR2:  EQU    RegBase+$CD        ; SCI 0 status 
+                               register 2
+
+
+shiviKey.asm           Assembled with CASM12Z  4/5/2018  5:46:06 PM  PAGE 2
+
+
+
+ 000000                  41  SCI0DRH: EQU    RegBase+$CE        ; SCI 0 data 
+                               register high byte
+ 000000                  42  SCI0DRL: EQU    RegBase+$CF        ; SCI 0 data 
+                               register low byte
+                           43  ;*********Variables*****************************
+                               ********************************
+                           44  
+ 001000                  45             ORG $1000
+                           46           
+ 001000      01          47  INPUT1: DB 1
+ 001001      01          48  INPUT2: DB 1
+ 001002      01          49  INPUT3: DB 1
+ 001003      01          50  INPUT4: DB 1
+ 001004      01          51  PinCount: DB 1
+ 001005      01          52  InputCount: DB 1
+ 001006                  53  Stored_RFID_Data: DS 8
+                           54  
+                           55  ;***************Main Routine********************
+                               ********************************
+ 000400                  56             ORG $400
+                           57           
+ 000400 [02] CF4000      58             LDS #$4000                             
+                                         ;Load stack pointer
+                           59           
+ 000403 [04] 4C0200      60             BSET DDRA,%00000000
+                           61           
+ 000406 [01] 8634        62             LDAA #BPS9600
+ 000408 [02] 5AC9        63             STAA SCI0BDL
+                           64           
+ 00040A [01] 860C        65             LDAA #$0C                              
+                                          ;we need to initialize the perhiphera
+                               l conditions regarding parity bits, data size, 
+                               and stop bits 
+ 00040C [02] 5ACB        66             STAA SCI0CR2                           
+                                  ;here we are setting parity bit to 1 
+                               (None),data size to 8 bits, and stop bits to 1
+                           67                     
+                           68                                                  
+                                                  ;we are expecting a data 
+                               size of 128bytes, for the purpose of this 
+                               project, the data size is reduced to 8 bytes
+                           69                                                  
+                                                  ;therefore we need to 
+                               allocate 8 bytes of memory that is pre-allocated
+                           70           ;Timer Stuff
+ 00040E [04] 4C4690      71             BSET TSCR1,%10010000             
+                               ;Enable timer
+ 000411 [04] 4C4D03      72             BSET TSCR2,%00000011             
+                               ;Scale factor for timer
+ 000414 [04] 4C4003      73             BSET TIOS,%00000011                    
+                                 ;Set delay timer(CH0),pin timer(CH1)to output 
+                               compare
+ 000417 [04] 4C4800      74             BSET TCTL1,%00000000             
+                               ;Disconnect delay and pin timers from external 
+                               connection
+ 00041A [04] 4C4900      75             BSET TCTL2,%00000000
+                           76           
+                           77  KEYINIT:
+
+
+shiviKey.asm           Assembled with CASM12Z  4/5/2018  5:46:06 PM  PAGE 3
+
+
+
+ 00041D [04] 4C030F      78             BSET DDRB,$0F                          
+                                 ;Init B0-3 to output, init B4-7 to input 
+                               (Check if correct DDRB)
+ 000420 [04] 4C0C02      79             BSET PUCR,$02                          
+                                 ;Enable PORTB as pullup
+ 000423 [04] 16054D      80             JSR HRESET                             
+                                         ;Hard reset system
+ 000426 [03] 200C        81             BRA CHECK_SW                           
+                                 ;Go to main waiting state
+                           82  
+ 000428 [03] F61004      83  Reset:      LDAB PinCount                         
+                                 ;Check pin counter
+ 00042B [01] C10A        84              CMPB #!10                             
+                                         ;If its ten, time is up for pin entry
+ 00042D [03] 2605        85              BNE CHECK_SW
+ 00042F [04] 16054D      86              JSR HReset                            
+                                         ;Hard reset
+ 000432 [03] 2000        87              BRA CHECK_SW
+                           88            
+                           89  CHECK_SW:
+ 000434 [04] 4F4E02F0    90              BRCLR TFLG1,%00000010,Reset ;Check if 
+                               timer has reached max value
+                           91            
+ 000438 [01] C7          92              CLRB
+                           93            
+                           94            ;First Row
+ 000439 [01] 860E        95              LDAA #%00001110
+ 00043B [02] 5A01        96              STAA PORTB
+ 00043D [04] 4F01104A    97              BRCLR PORTB,%00010000,CHECK_SW1
+ 000441 [04] 4F012046    98              BRCLR PORTB,%00100000,CHECK_SW1
+ 000445 [04] 4F014042    99              BRCLR PORTB,%01000000,CHECK_SW1
+ 000449 [04] 4F01803E   100              BRCLR PORTB,%10000000,CHECK_SW1
+                          101            
+                          102            ;Second Row
+ 00044D [01] 860D       103              LDAA #%00001101
+ 00044F [02] 5A01       104              STAA PORTB
+ 000451 [04] 4F011036   105              BRCLR PORTB,%00010000,CHECK_SW1
+ 000455 [04] 4F012032   106              BRCLR PORTB,%00100000,CHECK_SW1
+ 000459 [04] 4F01402E   107              BRCLR PORTB,%01000000,CHECK_SW1
+ 00045D [04] 4F01802A   108              BRCLR PORTB,%10000000,CHECK_SW1
+                          109            
+                          110            ;Third Row
+ 000461 [01] 860B       111              LDAA #%00001011
+ 000463 [02] 5A01       112              STAA PORTB
+ 000465 [04] 4F011022   113              BRCLR PORTB,%00010000,CHECK_SW1
+ 000469 [04] 4F01201E   114              BRCLR PORTB,%00100000,CHECK_SW1
+ 00046D [04] 4F01401A   115              BRCLR PORTB,%01000000,CHECK_SW1
+ 000471 [04] 4F018016   116              BRCLR PORTB,%10000000,CHECK_SW1
+                          117            
+                          118            ;Fourth Row
+ 000475 [01] 8607       119              LDAA #%00000111
+ 000477 [02] 5A01       120              STAA PORTB
+ 000479 [04] 4F01100E   121              BRCLR PORTB,%00010000,CHECK_SW1
+ 00047D [04] 4F01200A   122              BRCLR PORTB,%00100000,CHECK_SW1
+ 000481 [04] 4F014006   123              BRCLR PORTB,%01000000,CHECK_SW1
+ 000485 [04] 4F018002   124              BRCLR PORTB,%10000000,CHECK_SW1
+                          125            
+ 000489 [03] 20A9       126              BRA CHECK_SW
+
+
+shiviKey.asm           Assembled with CASM12Z  4/5/2018  5:46:06 PM  PAGE 4
+
+
+
+                          127            
+ 00048B [04] 160527     128  CHECK_SW1: JSR Delay
+ 00048E [04] 4E01F0A2   129                BRSET PORTB,$F0,CHECK_SW            
+                                 ;Check if not pressed
+ 000492 [03] 9601       130  CHECK_SW2: LDAA PORTB                             
+                                                 ;Load read value into acc A
+ 000494 [04] 4E01F0FC   131                BRSET PORTB,$F0,*                   
+                                         ;Check for switch release
+ 000498 [02] 36         132                PSHA                                
+                                                         ;Store read value 
+                               temporarily on stack
+ 000499 [04] 160527     133                JSR Delay                           
+                                                 ;delay for release
+ 00049C [03] 32         134                PULA                                
+                                                         ;Pull value off stack
+ 00049D [04] 4E01F0F1   135                BRSET PORTB,$F0,CHECK_SW2           
+                                 ;if false release
+ 0004A1 [03] F61005     136                LDAB InputCount
+ 0004A4 [01] 52         137                INCB                                
+                                                         ;Add one to input 
+                               counter
+ 0004A5 [03] 7B1005     138                STAB InputCount
+ 0004A8 [02] 36         139                PSHA                                
+                                                         ;Push input on stack
+ 0004A9 [01] C101       140                CMPB #$01                           
+                                                 ;Check if first input
+ 0004AB [03] 260E       141                BNE NoTimer                         
+                                                 ;If not, nothing needs to be 
+                               done
+ 0004AD [03] DC44       142  Timer:        LDD TSCNT                           
+                                                 ;Set up timer
+ 0004AF [03] F30000     143                ADDD PinTime
+ 0004B2 [02] 5C52       144                STD TC1
+ 0004B4 [03] F61004     145                LDAB PinCount                       
+                                                 ;increase pin counter 
+ 0004B7 [01] 52         146                INCB
+ 0004B8 [03] 7B1004     147                STAB PinCount 
+ 0004BB [01] C104       148  NoTimer:   CMPB #$04                              
+                                                 ;Check if four inputs have 
+                               been entered
+ 0004BD [03] 2704       149                BEQ Compare                         
+                                                 ;Branch to compare subroutine
+ 0004BF [04] 1820FF71   150                LBRA CHECK_SW
+                          151  
+ 0004C3 [03] 32         152  Compare:   PULA                                   
+                                                         ;Get value from stack
+ 0004C4 [03] 91DE       153                CMPA PIN4                           
+                                                 ;Check if pin is correct
+ 0004C6 [03] 2707       154                BEQ Correct1                        
+                                                 ;Reset if not
+ 0004C8 [04] 16054D     155                JSR HReset
+ 0004CB [04] 1820FF65   156                LBRA CHECK_SW
+ 0004CF [03] 32         157  Correct1:  PULA
+ 0004D0 [03] 91EB       158                CMPA PIN3
+ 0004D2 [03] 2707       159                BEQ Correct2
+ 0004D4 [04] 16054D     160                JSR HReset
+ 0004D7 [04] 1820FF59   161                LBRA CHECK_SW
+ 0004DB [03] 32         162  Correct2:  PULA
+
+
+shiviKey.asm           Assembled with CASM12Z  4/5/2018  5:46:06 PM  PAGE 5
+
+
+
+ 0004DC [03] 91ED       163                CMPA PIN2
+ 0004DE [03] 2707       164                BEQ Correct3
+ 0004E0 [04] 16054D     165                JSR HReset
+ 0004E3 [04] 1820FF4D   166                LBRA CHECK_SW
+ 0004E7 [03] 32         167  Correct3:  PULA
+ 0004E8 [03] 91EE       168                CMPA PIN1
+ 0004EA [03] 2707       169                BEQ Correct4
+ 0004EC [04] 16054D     170                JSR HReset
+ 0004EF [04] 1820FF41   171                LBRA CHECK_SW
+ 0004F3 [03] 2000       172  Correct4:  BRA RFID
+                          173  
+ 0004F5 [01] C7         174  RFID:                CLRB                         
+                                                          ;clear accumulator b
+ 0004F6 [01] 87         175                       CLRA                         
+                                                  ;clear accumulator a
+ 0004F7 [03] FE1006     176                       LDX Stored_RFID_Data
+ 0004FA [04] 4FCC20FC   177  Recieving:           BRCLR SCI0SR1,$20,*          
+                                 ;Check when we are completed recieving, spin 
+                               other wise
+ 0004FE [03] 96CF       178                       LDAA SCI0DRL                 
+                                         ;load the data in the reciving data 
+                               register 
+ ***** FATAL ERROR ***** ASSEMBLY ABORTED *****
+error 1 Parameter : invalid, too large, missing, or out of range

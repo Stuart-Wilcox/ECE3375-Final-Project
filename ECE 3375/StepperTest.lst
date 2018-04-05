@@ -1,0 +1,110 @@
+
+StepperTest.asm        Assembled with CASM12Z  4/3/2018  2:52:28 PM  PAGE 1
+
+
+
+                            1  
+ 000000                   2  PORTA                      EQU $0000
+ 000000                   3  DDRA                       EQU $0002
+                            4  
+ 000000                   5  PORTB                      EQU $0001
+ 000000                   6  DDRB                       EQU $0003
+                            7  
+ 000000                   8  PORTM                      EQU $0250
+ 000000                   9  DDRM                       EQU $0252
+                           10  
+ 000400                  11                  org $400
+ 000400 [02] CF4000      12                  lds #$4000
+                           13                           
+                           14                           ; Port B to outputs    
+                                                        
+ 000403 [01] 86FF        15                             ldaa #$FF
+ 000405 [02] 5A03        16                             staa DDRB
+                           17                           ; Port M to input
+ 000407 [01] 87          18                             clra
+ 000408 [03] 7A0252      19                             staa DDRM
+                           20                           
+ 00040B [01] C603        21  outer                      ldab #3
+ 00040D [03] 7B1000      22                             stab index
+ 000410 [03] B60250      23                             ldaa PORTM
+ 000413 [01] 8401        24                             ANDA #1   ; check 
+                               direction bit
+ 000415 [03] 2705        25                             BEQ      CW
+ 000417 [02] CD045E      26                             ldy #cwArray
+ 00041A [03] 2003        27                             BRA assignPtr
+ 00041C [02] CD0462      28  CW:                                ldy #ccwArray
+ 00041F [03] 7D1001      29  assignPtr:         STY ptr                        
+                                
+ 000422 [03] F60250      30                             LDAB PORTM
+ 000425 [01] C402        31                             ANDB #2
+ 000427 [01] CB02        32                             ADDB #2
+ 000429 [01] 87          33                             clra
+ 00042A [03] 7C1003      34                             STD speed
+                           35  
+ 00042D [03] FD1001      36  inner                      ldy ptr
+ 000430 [03] F61000      37                             ldab index
+ 000433 [03] 9601        38                             LDAA PORTB
+ 000435 [01] 840F        39                             ANDA #$0F
+ 000437 [03] AAED        40                             ORaA B,Y
+ 000439 [02] 5A01        41                             staa PORTB
+ 00043B [03] FE1003      42                             ldx speed
+ 00043E [02] 34          43                             pshx
+ 00043F [04] 160451      44                             jsr Delay
+ 000442 [03] 30          45                             pulx
+ 000443 [04] 731000      46                             dec index
+ 000446 [03] 2CE5        47                             bge inner
+ 000448 [03] 20C1        48                             bra outer
+                           49         
+ 00044A [02] CE06D6      50  Delay1MS:       ldx #!1750 ; This is a magic 
+                               number.  Modify to change delay
+ 00044D [01] 09          51  DelayLoop:      dex                        ; time.
+ 00044E [03] 26FD        52                  bne DelayLoop
+ 000450 [05] 3D          53                  rts
+                           54  
+
+
+StepperTest.asm        Assembled with CASM12Z  4/3/2018  2:52:28 PM  PAGE 2
+
+
+
+ 000451 [04] 16044A      55  Delay:          jsr Delay1MS
+ 000454 [03] EE82        56                  ldX 2,SP            ; The 
+                               decrement can't be done in place
+ 000456 [01] 09          57                  dex                         ; DEC 
+                               2,X is a one byte operation
+ 000457 [02] 6E82        58                  stX 2,SP            ; That's why 
+                               I use Y as a temp.
+ 000459 [03] 2702        59                  beq DelayEnd                
+ 00045B [03] 20F4        60                  bra Delay
+ 00045D [05] 3D          61  DelayEnd        rts                        
+                           62  
+ 00045E      90601040    63  cwArray: db $90,$60,$10,$40
+ 000462      40106090    64  ccwArray: db $40,$10,$60,$90
+                           65  
+ 001000                  66              org $1000
+ 001000                  67  index:      ds 1
+ 001001                  68  ptr:        ds 2
+ 001003                  69  speed:      ds 2
+                           70   
+
+ Symbol Table 
+
+ASSIGNPTR        00041F
+CCWARRAY         000462
+CW               00041C
+CWARRAY          00045E
+DDRA             000002
+DDRB             000003
+DDRM             000252
+DELAY            000451
+DELAY1MS         00044A
+DELAYEND         00045D
+DELAYLOOP        00044D
+INDEX            001000
+INNER            00042D
+OUTER            00040B
+PORTA            000000
+PORTB            000001
+PORTM            000250
+PTR              001001
+SPEED            001003

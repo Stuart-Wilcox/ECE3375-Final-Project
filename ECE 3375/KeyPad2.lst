@@ -1,0 +1,90 @@
+
+KeyPad2.asm            Assembled with CASM12Z  4/5/2018  5:42:20 PM  PAGE 1
+
+
+
+                            1  
+                            2  
+ 000000                   3  PORTA:     equ $0000 ; port A data register
+ 000000                   4  DDRA:      equ $0002 ; port A data direction 
+                               register
+ 000000                   5  PUCR:      equ $000C ; port A, B, E and K pullup 
+                               control register
+                            6  
+                            7  
+ 000000 [04] 4C0200       8  Init:                bset DDRA,$00 ; set port A 
+                               to inputs
+ 000003 [04] 4C0C01       9                       bset PUCR,$01 ; enable 
+                               pullup devices for all port A inputs
+                           10  
+                           11  
+ 000006 [04] 4F000102    12  CheckSw:             brclr PORTA,$01,CheckSw1 ; 
+                               check to see if switch pressed
+                           13  
+ 00000A [01] 87          14  NoPress:     clra ; no press detected, return 0 
+                               in accumulator A
+ 00000B [05] 3D          15                       rts ; return
+                           16  
+ 00000C [01] 860A        17  CheckSw1:    ldaa #!10 ; yes, switch press 
+                               detected, now debounce
+ 00000E [04] 071A        18                       bsr Delay ; 10mS delay for 
+                               debounce
+ 000010 [04] 4E0001F6    19                       brset PORTA,$01,NoPress ; if 
+                               switch press not detected after debounce, return
+                           20  
+ 000014 [04] 4F0001FC    21  CheckSw2:    brclr PORTA,$01,* ; wait here until 
+                               switch release detected
+ 000018 [01] 860A        22                       ldaa #!10 ; 10mS delay for 
+                               release of switch press
+ 00001A [04] 070E        23                       bsr Delay
+ 00001C [04] 4F0001F4    24                       brclr PORTA,$01,CheckSw2 ; 
+                               if false release, wait for release
+ 000020 [01] 8601        25                       ldaa #1 ; switch released, 
+                               return valid key press condition
+ 000022 [05] 3D          26                       rts
+                           27  
+                           28                           
+                           29                           
+ 000023 [02] CE2710      30  Delay10MS:    ldx #!10000  ; This is a magic 
+                               number.  Modify to change delay
+                           31  
+                           32  
+ 000026 [01] 09          33  DelayLoop:    dex                  ; time.
+ 000027 [03] 26FD        34                bne DelayLoop
+ 000029 [05] 3D          35                rts
+                           36  
+                           37  
+ 00002A [04] 1723        38  Delay:               jsr Delay10MS
+ 00002C [03] EE82        39                ldX 2,SP              ; The 
+                               decrement can't be done in place
+ 00002E [01] 09          40                dex                           ; DEC 
+                               2,X is a one byte operation
+ 00002F [02] 6E82        41                stX 2,SP              ; That's why 
+                               I use Y as a temp.
+
+
+KeyPad2.asm            Assembled with CASM12Z  4/5/2018  5:42:20 PM  PAGE 2
+
+
+
+ 000031 [03] 2702        42                beq DelayEnd                
+ 000033 [03] 20F5        43                bra Delay
+                           44  
+ 000035 [05] 3D          45  DelayEnd      rts  
+                           46                           
+                           47   
+
+ Symbol Table 
+
+CHECKSW          000006
+CHECKSW1         00000C
+CHECKSW2         000014
+DDRA             000002
+DELAY            00002A
+DELAY10MS        000023
+DELAYEND         000035
+DELAYLOOP        000026
+INIT             000000
+NOPRESS          00000A
+PORTA            000000
+PUCR             00000C
